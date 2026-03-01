@@ -53,14 +53,12 @@ class TablesController {
 
       const { table_number } = bodySchema.parse(request.body)
 
-      // 🔹 1️⃣ Verifica se o ID existe
       const table = await knex('tables').where('id', request.params.id).first()
 
       if (!table) {
         return response.status(404).json({ message: 'Table not found' })
       }
 
-      // 🔹 2️⃣ Verifica duplicidade
       const existTable = await knex('tables')
         .where('table_number', table_number)
         .andWhereNot('id', request.params.id)
@@ -70,7 +68,6 @@ class TablesController {
         return response.status(400).json({ message: 'Table number already exists' })
       }
 
-      // 🔹 3️⃣ Atualiza
       await knex('tables').where('id', request.params.id).update({ table_number })
 
       return response.json({
