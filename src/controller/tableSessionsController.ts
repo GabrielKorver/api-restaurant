@@ -5,13 +5,21 @@ import { z } from 'zod'
 class TableSessionsController {
   async index(request: Request, response: Response, next: NextFunction) {
     try {
-      const tableSessions = await knex<TableSessionsRepository>('table_sessions').select()
+      const tableSessions = await knex('table_sessions')
+        .join('tables', 'table_sessions.table_id', 'tables.id')
+        .select(
+          'table_sessions.id',
+          'table_sessions.table_id',
+          'tables.table_number',
+          'table_sessions.opened_at',
+          'table_sessions.closed_at',
+        )
+
       return response.json(tableSessions)
     } catch (error) {
       next(error)
     }
   }
-
   async create(request: Request, response: Response, next: NextFunction) {
     try {
       const bodySchema = z.object({
@@ -30,7 +38,7 @@ class TableSessionsController {
           .json({ message: 'There is already an open session for this table' })
       }
 
-      await knex('table_sessions').insert({ table_id, opened_at: Date.now() })
+      await knex('table_sessions').insert({ table_id, opened_at: knex.fn.now() })
       return response.status(201).json({ message: 'Table session created successfully' })
     } catch (error) {
       next(error)
@@ -39,6 +47,29 @@ class TableSessionsController {
 
   async update(request: Request, response: Response, next: NextFunction) {
     try {
+      const { id } = request.params
+
+      const tableSession = await knex('table_sessions').where('id', id).first()
+
+      if (!tableSession) {
+        return response.status(404).json({
+          message: 'Table session not found',
+        })
+      }
+
+      if (tableSession.closed_at) {
+        return response.status(400).json({
+          message: 'Table session is already closed',
+        })
+      }
+
+      await knex('table_sessions').where('id', id).update({
+        closed_at: knex.fn.now(),
+      })
+
+      return response.json({
+        message: 'Table session closed successfully',
+      })
     } catch (error) {
       next(error)
     }
